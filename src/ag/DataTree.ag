@@ -34,6 +34,14 @@ DATA Origin
 
 DERIVING Origin: Eq
 {
+data CssProperty = CssProperty { name         :: String
+                               , specificValue:: String
+                               , computedValue:: String
+                               }
+
+instance Show CssProperty where
+    show (CssProperty nm sv cv) = nm ++ ":" ++ sv
+
 instance Show Property where
     show (Property _ nm val _) = nm ++ ":" ++ val
 

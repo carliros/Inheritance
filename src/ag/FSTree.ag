@@ -8,8 +8,7 @@ DATA BoxTree
 TYPE Boxes = [BoxTree]
 
 DATA BoxNode
-    | BoxTag  Bool prop:String name:String
-    | BoxText Bool prop:String name:String
+    | BoxNode  Bool prop:String name:String
 
 DERIVING *: Show
 
@@ -76,9 +75,7 @@ SEM BoxTree
 
 ATTR BoxNode [|| bl:Bool nm:String ]
 SEM BoxNode
-    | BoxTag  lhs.nm = if @bool then @name  ++ "\n" ++ @prop else @name
-              lhs.bl = @bool
-    | BoxText lhs.nm = if @bool then "text" ++ "\n" ++ @prop else "text"
+    | BoxNode lhs.nm = if @bool then @name  ++ "\n" ++ @prop else @name
               lhs.bl = @bool
 
 ATTR BoxRoot BoxTree Boxes [|| out:{[OBox]}]

@@ -37,7 +37,7 @@ SEM NTree
 
 {
 defaultUserAgentStyle :: [(Selector, Property, Int)]
---defaultUserAgentStyle = [(SimpSelector UnivSelector, Property UserAgent "display" "block" False, 1000)]
+--defaultUserAgentStyle = [(SimpSelector UnivSelector, Property UserAgent "display" "none" False, 1000)]
 defaultUserAgentStyle = []
 --defaultUserStyle :: 
 --defaultUserStyle = 
@@ -71,9 +71,25 @@ SEM NTree
                         in nsel : @ntrees.rules
                       
 -- Redistributing the selector's list
-ATTR NTrees NTree [ css:{[(Selector, Property, Int)]} ||]
+ATTR NTrees NTree [ css:{[([TSelector], Property, Int)]} ||]
 SEM Root
-    | Root ntree.css = distributeDeclarations (catMaybes @ntree.rules) ++ defaultUserAgentStyle
+    | Root ntree.css = map (\(sel,prop,i) -> (reverse (transformSelector sel),prop,i)) $ distributeDeclarations (catMaybes @ntree.rules) ++ defaultUserAgentStyle
+
+-- Attr to state who is the Root
+ATTR NTree NTrees [ iamtheroot: Bool ||]
+SEM Root
+    | Root ntree.iamtheroot = True
+
+SEM NTree
+    | NTree ntrees.iamtheroot = if @lhs.iamtheroot then False else False
+
+-- Downloading the father property throughout the html tree
+ATTR NTree NTrees [propFather: CssProperty ||]
+SEM NTree
+    | NTree ntrees.propFather = @loc.propDisplay
+
+SEM Root
+    | Root ntree.propFather = CssProperty "root" "default" "default"
 
 -- Asign values to each property for every element in the html tree
 {-
@@ -86,16 +102,31 @@ SEM Root
              else use the inital value of the property
 -}
 SEM NTree
-    | NTree loc.rlist = let lprop     = getPropertyDeclarations "display" @lhs.css
-                            lselected = filter (\(selector, _, _) -> let lsel = reverse (transformSelector selector)
-                                                                     in applySelector @node.myself @loc.fathers (reverse @loc.siblings) [] 0 lsel) 
-                                               @lhs.css
-                        in head' $ dropWhile null $ cascadingSorting lselected
-            loc.sel   = not $ null @loc.rlist
+    | NTree loc.rlist = filter (\(selector, _, _) -> applySelector @node.myself @loc.fathers (reverse @loc.siblings) [] 0 selector) @lhs.css
+            loc.propDisplay = applyRule "display" False "inline" @lhs.propFather @lhs.iamtheroot @loc.rlist
+            loc.sel   = True
             loc.desc  = if @loc.sel
-                        then let (_,prop,_) = head @loc.rlist
-                             in show prop
+                        then show @loc.propDisplay
                         else ""
+
+{
+-- applyRule :: Name   -> Inherited -> DefaultValue -> FatherProperty -> IsRoot -> ListCss                   -> CssProperty
+applyRule    :: String -> Bool      -> String       -> CssProperty    -> Bool   -> [([TSelector],Property,Int)] -> CssProperty
+applyRule       nm        inh          defval          father            isRoot    rules
+    = let lprop = getPropertyDeclarations nm rules
+          rlist = head' $ dropWhile null $ cascadingSorting lprop
+      in if not $ null rlist
+         then let (_,Property _ _ val _,_) = head rlist
+              in if val == "inherit"
+                 then if isRoot
+                      then CssProperty nm defval defval
+                      else CssProperty nm (specificValue father) (computedValue father)
+                 else CssProperty nm val val
+         else if inh && (not isRoot)
+              then CssProperty nm (specificValue father) (computedValue father)
+              else CssProperty nm defval defval
+
+}
 
 -- Generating the Formatting Structure
 ATTR NTrees [|| res:{[Maybe BoxTree]}]
@@ -106,8 +137,8 @@ SEM NTrees
 ATTR NTree [|| res: {Maybe BoxTree} ]
 SEM NTree
     | NTree lhs.res = let nd = case @node.myself of
-                                NTag  str  -> Just $ BoxTag  @loc.sel @loc.desc str
-                                NText str  -> Just $ BoxText @loc.sel @loc.desc str
+                                NTag  str  -> Just $ BoxNode @loc.sel @loc.desc str
+                                NText str  -> Just $ BoxNode @loc.sel @loc.desc "text"
                                 NStyle     -> Nothing
                                 NRuleCss _ -> Nothing
                       in if isNothing nd
