@@ -1,0 +1,17 @@
+
+Inheritance project, to test the cascading algorithm and inheritance part of CSS properties.
+
+To Compile:
+    make all
+
+In order to get installed, you will need:
+    - wxhaskell
+    - uulib
+    - uuagc
+
+Then you can execute with:  ./inh
+
+There are some html examples that you can try (I am using just some html tags). 
+
+For more detail information: http://hsbrowser.wordpress.com/inheritance-project/
+
